@@ -36,15 +36,14 @@
     height: 100%;
     shape-rendering: crispEdges;
   }
-  #obstacle {
+  .obstacle {
     position: absolute;
     bottom: 40px;
     width: 50px;
     height: 50px;
-    left: 900px;
     z-index: 10;
   }
-  #obstacle svg {
+  .obstacle svg {
     width: 100%;
     height: 100%;
     shape-rendering: crispEdges;
@@ -105,19 +104,9 @@
     </svg>
   </div>
 
-  <div id="obstacle">
-    <!-- Cacto pixel art vermelho -->
-    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-      <!-- Base do cacto -->
-      <rect x="20" y="35" width="24" height="15" fill="#D32F2F" />
-      <!-- Braços do cacto -->
-      <rect x="15" y="25" width="10" height="8" fill="#D32F2F" />
-      <rect x="39" y="25" width="10" height="8" fill="#D32F2F" />
-      <!-- Tronco central -->
-      <rect x="28" y="15" width="8" height="20" fill="#D32F2F" />
-      <!-- Topo arredondado -->
-      <rect x="26" y="10" width="12" height="8" fill="#D32F2F" rx="3" ry="3"/>
-    </svg>
+  <!-- Obstáculos dinâmicos -->
+  <div id="obstacles">
+    <!-- Obstáculos serão gerados aqui pelo JavaScript -->
   </div>
 
   <button id="startButton">Começar Jogo</button>
@@ -126,7 +115,7 @@
 
 <script>
   const player = document.getElementById('player');
-  const obstacle = document.getElementById('obstacle');
+  const obstaclesContainer = document.getElementById('obstacles');
   const scoreDisplay = document.getElementById('score');
   const startButton = document.getElementById('startButton');
   const pauseButton = document.getElementById('pauseButton');
@@ -148,12 +137,46 @@
   const gravity = 0.7;
 
   let obstacleSpeed = 7;
-  let obstaclePos = gameWidth;
+  let obstacles = [];
   let score = 0;
   let gameOver = false;
   let gameStarted = false;
   let paused = false;
   let animationFrameId;
+
+  // Função para gerar novos obstáculos
+  function createObstacle() {
+    const obstacle = document.createElement('div');
+    obstacle.classList.add('obstacle');
+    obstacle.style.left = gameWidth + 'px';
+    obstaclesContainer.appendChild(obstacle);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 64 64');
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svg.setAttribute('shape-rendering', 'crispEdges');
+
+    // Desenho do cacto
+    const base = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    base.setAttribute('x', 20);
+    base.setAttribute('y', 35);
+    base.setAttribute('width', 24);
+    base.setAttribute('height', 15);
+    base.setAttribute('fill', '#D32F2F');
+    svg.appendChild(base);
+
+    const trunk = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    trunk.setAttribute('x', 28);
+    trunk.setAttribute('y', 15);
+    trunk.setAttribute('width', 8);
+    trunk.setAttribute('height', 20);
+    trunk.setAttribute('fill', '#D32F2F');
+    svg.appendChild(trunk);
+
+    obstacle.appendChild(svg);
+
+    return obstacle;
+  }
 
   function jump() {
     if (!isJumping && !paused) {
@@ -204,37 +227,44 @@
 
     player.style.bottom = groundLevel + jumpHeight + 'px';
 
-    obstaclePos -= obstacleSpeed;
-    if (obstaclePos < -obstacleWidth) {
-      obstaclePos = gameWidth;
-      score++;
-      scoreDisplay.textContent = 'Score: ' + score;
+    obstacles.forEach((obstacle, index) => {
+      let pos = parseInt(obstacle.style.left) - obstacleSpeed;
+      if (pos < -obstacleWidth) {
+        obstacle.style.left = gameWidth + 'px';
+        score++;
+        scoreDisplay.textContent = 'Score: ' + score;
 
-      if (score % 3 === 0) {  // Tornar mais difícil mais rapidamente
-        obstacleSpeed += 1;
+        if (score % 3 === 0) {  // Tornar mais difícil mais rapidamente
+          obstacleSpeed += 1;
+        }
+      } else {
+        obstacle.style.left = pos + 'px';
       }
-    }
-    obstacle.style.left = obstaclePos + 'px';
 
-    // Hitbox centralizadas
-    const playerHitboxX = playerLeft + (playerWidth - playerHitbox.width) / 2;
-    const playerHitboxY = groundLevel + jumpHeight;
+      // Verifica colisão
+      const playerHitboxX = playerLeft + (playerWidth - playerHitbox.width) / 2;
+      const playerHitboxY = groundLevel + jumpHeight;
+      const obstacleHitboxX = parseInt(obstacle.style.left) + (obstacleWidth - obstacleHitbox.width) / 2;
+      const obstacleHitboxY = groundLevel;
 
-    const obstacleHitboxX = obstaclePos + (obstacleWidth - obstacleHitbox.width) / 2;
-    const obstacleHitboxY = groundLevel;
+      const horizontalOverlap =
+        playerHitboxX < obstacleHitboxX + obstacleHitbox.width &&
+        playerHitboxX + playerHitbox.width > obstacleHitboxX;
 
-    const horizontalOverlap =
-      playerHitboxX < obstacleHitboxX + obstacleHitbox.width &&
-      playerHitboxX + playerHitbox.width > obstacleHitboxX;
+      const verticalOverlap =
+        playerHitboxY < obstacleHitboxY + obstacleHitbox.height &&
+        playerHitboxY + playerHitbox.height > obstacleHitboxY;
 
-    const verticalOverlap =
-      playerHitboxY < obstacleHitboxY + obstacleHitbox.height &&
-      playerHitboxY + playerHitbox.height > obstacleHitboxY;
+      if (horizontalOverlap && verticalOverlap) {
+        gameOver = true;
+        alert('Game Over! Seu score: ' + score);
+        location.reload();
+      }
+    });
 
-    if (horizontalOverlap && verticalOverlap) {
-      gameOver = true;
-      alert('Game Over! Seu score: ' + score);
-      location.reload();
+    // Adiciona obstáculos novos a cada 200 pontos
+    if (score % 10 === 0 && obstacles.length < 5) {
+      obstacles.push(createObstacle());
     }
 
     animationFrameId = requestAnimationFrame(update);
