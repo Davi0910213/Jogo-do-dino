@@ -56,19 +56,6 @@
     font-size: 24px;
     z-index: 20;
   }
-  #ranking {
-    position: absolute;
-    top: 50px;
-    left: 10px;
-    color: white;
-    font-size: 16px;
-    background-color: rgba(0,0,0,0.6);
-    padding: 10px;
-    border-radius: 8px;
-    max-width: 300px;
-    display: none;
-    z-index: 50;
-  }
   #startButton, #pauseButton {
     position: absolute;
     top: 50%;
@@ -91,13 +78,28 @@
     display: none;
     background-color: #cc0000;
   }
+  #ranking {
+    position: absolute;
+    top: 50px;
+    right: 15px;
+    color: white;
+    font-size: 18px;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 8px;
+    border-radius: 5px;
+    max-width: 200px;
+  }
+  #ranking ol {
+    padding-left: 20px;
+    margin: 5px 0 0 0;
+  }
 </style>
 </head>
 <body>
 
 <div id="game">
   <div id="score">Score: 0</div>
-  <div id="ranking"></div>
   
   <div id="player">
     <!-- Dinossauro pixel art -->
@@ -125,6 +127,14 @@
 
   <button id="startButton">Começar Jogo</button>
   <button id="pauseButton">Pausar</button>
+
+  <!-- Ranking -->
+  <div id="ranking">
+    <strong>Top Scores:</strong>
+    <ol id="rankList">
+      <!-- Lista será preenchida via JS -->
+    </ol>
+  </div>
 </div>
 
 <script>
@@ -133,7 +143,6 @@
   const scoreDisplay = document.getElementById('score');
   const startButton = document.getElementById('startButton');
   const pauseButton = document.getElementById('pauseButton');
-  const rankingDisplay = document.getElementById('ranking');
 
   const gameWidth = 900;
   const groundLevel = 40;
@@ -151,13 +160,37 @@
   let jumpSpeed = 0;
   const gravity = 0.7;
 
-  let obstacleSpeed = 10;
+  let obstacleSpeed = 6;  // VELOCIDADE ALTERADA PARA 6
   let obstacles = [];
   let score = 0;
   let gameOver = false;
   let gameStarted = false;
   let paused = false;
   let animationFrameId;
+
+  // Ranking com localStorage
+  let topScores = JSON.parse(localStorage.getItem('blockDashTopScores')) || [];
+
+  function updateRanking(score) {
+    topScores.push(score);
+    topScores = topScores.sort((a,b) => b - a).slice(0,5);
+    localStorage.setItem('blockDashTopScores', JSON.stringify(topScores));
+    renderRanking();
+  }
+
+  function renderRanking() {
+    const rankList = document.getElementById('rankList');
+    rankList.innerHTML = '';
+    if(topScores.length === 0) {
+      rankList.innerHTML = '<li>Nenhum score ainda</li>';
+      return;
+    }
+    topScores.forEach(score => {
+      const li = document.createElement('li');
+      li.textContent = score;
+      rankList.appendChild(li);
+    });
+  }
 
   // Função para gerar novos obstáculos
   function createObstacle() {
@@ -211,16 +244,9 @@
     gameStarted = true;
     startButton.style.display = 'none';
     pauseButton.style.display = 'block';
-    rankingDisplay.style.display = 'none';
-    obstacles.forEach(ob => ob.remove());
-    obstacles = [];
-    score = 0;
-    obstacleSpeed = 4;
-    gameOver = false;
-    jumpHeight = 0;
-    isJumping = false;
-    scoreDisplay.textContent = 'Score: 0';
     window.addEventListener('keydown', keyHandler);
+    // Se não tem obstáculos, cria um inicial
+    if (obstacles.length === 0) obstacles.push(createObstacle());
     update();
   });
 
@@ -235,25 +261,6 @@
       update();
     }
   });
-
-  // Função para salvar o score e atualizar ranking no localStorage
-  function saveScore(score) {
-    let ranking = JSON.parse(localStorage.getItem('blockDashRanking')) || [];
-    ranking.push(score);
-    ranking.sort((a, b) => b - a);
-    if (ranking.length > 5) ranking = ranking.slice(0, 5);
-    localStorage.setItem('blockDashRanking', JSON.stringify(ranking));
-    return ranking;
-  }
-
-  // Exibir ranking na tela
-  function showRanking(ranking) {
-    rankingDisplay.style.display = 'block';
-    rankingDisplay.innerHTML = '<strong>Top 5 Scores:</strong><br>';
-    ranking.forEach((sc, i) => {
-      rankingDisplay.innerHTML += `${i + 1}. ${sc}<br>`;
-    });
-  }
 
   function update() {
     if (gameOver || !gameStarted || paused) return;
@@ -277,15 +284,14 @@
         score++;
         scoreDisplay.textContent = 'Score: ' + score;
 
-        // Velocidade não aumenta para manter mais lento
-        // if (score % 3 === 0) {  
-        //   obstacleSpeed += 1;
-        // }
+        if (score % 3 === 0) {
+          obstacleSpeed += 1;
+        }
       } else {
         obstacle.style.left = pos + 'px';
       }
 
-      // Verifica colisão
+      // Colisão
       const playerHitboxX = playerLeft + (playerWidth - playerHitbox.width) / 2;
       const playerHitboxY = groundLevel + jumpHeight;
       const obstacleHitboxX = parseInt(obstacle.style.left) + (obstacleWidth - obstacleHitbox.width) / 2;
@@ -301,11 +307,7 @@
 
       if (horizontalOverlap && verticalOverlap) {
         gameOver = true;
-
-        // Salvar e mostrar ranking
-        const ranking = saveScore(score);
-        showRanking(ranking);
-
+        updateRanking(score);
         alert('Game Over! Seu score: ' + score);
         pauseButton.style.display = 'none';
         startButton.style.display = 'block';
@@ -313,7 +315,6 @@
       }
     });
 
-    // Adiciona obstáculos novos a cada 10 pontos, até 5 obstáculos
     if (score % 10 === 0 && obstacles.length < 5) {
       obstacles.push(createObstacle());
     }
@@ -321,13 +322,8 @@
     animationFrameId = requestAnimationFrame(update);
   }
 
-  // Mostrar ranking armazenado ao carregar a página
-  window.onload = () => {
-    const ranking = JSON.parse(localStorage.getItem('blockDashRanking')) || [];
-    if (ranking.length > 0) {
-      showRanking(ranking);
-    }
-  }
+  // Mostrar ranking ao carregar
+  renderRanking();
 </script>
 
 </body>
