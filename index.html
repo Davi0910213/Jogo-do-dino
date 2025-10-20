@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Block Dash - Dino & Cacto com Pause</title>
+<title>Block Dash - Dino & Cacto com Pause e Ranking</title>
 <style>
   body {
     margin: 0;
@@ -56,6 +56,19 @@
     font-size: 24px;
     z-index: 20;
   }
+  #ranking {
+    position: absolute;
+    top: 50px;
+    left: 10px;
+    color: white;
+    font-size: 16px;
+    background-color: rgba(0,0,0,0.6);
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 300px;
+    display: none;
+    z-index: 50;
+  }
   #startButton, #pauseButton {
     position: absolute;
     top: 50%;
@@ -84,6 +97,7 @@
 
 <div id="game">
   <div id="score">Score: 0</div>
+  <div id="ranking"></div>
   
   <div id="player">
     <!-- Dinossauro pixel art -->
@@ -119,6 +133,7 @@
   const scoreDisplay = document.getElementById('score');
   const startButton = document.getElementById('startButton');
   const pauseButton = document.getElementById('pauseButton');
+  const rankingDisplay = document.getElementById('ranking');
 
   const gameWidth = 900;
   const groundLevel = 40;
@@ -136,7 +151,7 @@
   let jumpSpeed = 0;
   const gravity = 0.7;
 
-  let obstacleSpeed = 7;
+  let obstacleSpeed = 4; // MAIS LENTO (antes era 7)
   let obstacles = [];
   let score = 0;
   let gameOver = false;
@@ -181,7 +196,7 @@
   function jump() {
     if (!isJumping && !paused) {
       isJumping = true;
-      jumpSpeed = 12;  // Aumentar a dificuldade reduzindo a altura do pulo
+      jumpSpeed = 12;
     }
   }
 
@@ -196,6 +211,15 @@
     gameStarted = true;
     startButton.style.display = 'none';
     pauseButton.style.display = 'block';
+    rankingDisplay.style.display = 'none';
+    obstacles.forEach(ob => ob.remove());
+    obstacles = [];
+    score = 0;
+    obstacleSpeed = 4;
+    gameOver = false;
+    jumpHeight = 0;
+    isJumping = false;
+    scoreDisplay.textContent = 'Score: 0';
     window.addEventListener('keydown', keyHandler);
     update();
   });
@@ -211,6 +235,25 @@
       update();
     }
   });
+
+  // Função para salvar o score e atualizar ranking no localStorage
+  function saveScore(score) {
+    let ranking = JSON.parse(localStorage.getItem('blockDashRanking')) || [];
+    ranking.push(score);
+    ranking.sort((a, b) => b - a);
+    if (ranking.length > 5) ranking = ranking.slice(0, 5);
+    localStorage.setItem('blockDashRanking', JSON.stringify(ranking));
+    return ranking;
+  }
+
+  // Exibir ranking na tela
+  function showRanking(ranking) {
+    rankingDisplay.style.display = 'block';
+    rankingDisplay.innerHTML = '<strong>Top 5 Scores:</strong><br>';
+    ranking.forEach((sc, i) => {
+      rankingDisplay.innerHTML += `${i + 1}. ${sc}<br>`;
+    });
+  }
 
   function update() {
     if (gameOver || !gameStarted || paused) return;
@@ -234,9 +277,10 @@
         score++;
         scoreDisplay.textContent = 'Score: ' + score;
 
-        if (score % 3 === 0) {  // Tornar mais difícil mais rapidamente
-          obstacleSpeed += 1;
-        }
+        // Velocidade não aumenta para manter mais lento
+        // if (score % 3 === 0) {  
+        //   obstacleSpeed += 1;
+        // }
       } else {
         obstacle.style.left = pos + 'px';
       }
@@ -257,17 +301,32 @@
 
       if (horizontalOverlap && verticalOverlap) {
         gameOver = true;
+
+        // Salvar e mostrar ranking
+        const ranking = saveScore(score);
+        showRanking(ranking);
+
         alert('Game Over! Seu score: ' + score);
-        location.reload();
+        pauseButton.style.display = 'none';
+        startButton.style.display = 'block';
+        return;
       }
     });
 
-    // Adiciona obstáculos novos a cada 200 pontos
+    // Adiciona obstáculos novos a cada 10 pontos, até 5 obstáculos
     if (score % 10 === 0 && obstacles.length < 5) {
       obstacles.push(createObstacle());
     }
 
     animationFrameId = requestAnimationFrame(update);
+  }
+
+  // Mostrar ranking armazenado ao carregar a página
+  window.onload = () => {
+    const ranking = JSON.parse(localStorage.getItem('blockDashRanking')) || [];
+    if (ranking.length > 0) {
+      showRanking(ranking);
+    }
   }
 </script>
 
