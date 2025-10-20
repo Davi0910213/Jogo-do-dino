@@ -152,7 +152,8 @@
   const obstacleWidth = 50;
   const obstacleHeight = 50;
 
-  const playerHitbox = { width: 35, height: 40 };
+  // Aumento das hitboxes para o jogador
+  const playerHitbox = { width: 40, height: 45 };  
   const obstacleHitbox = { width: 30, height: 40 };
 
   let isJumping = false;
@@ -160,7 +161,7 @@
   let jumpSpeed = 0;
   const gravity = 0.7;
 
-  let obstacleSpeed = 6;  // VELOCIDADE ALTERADA PARA 6
+  let obstacleSpeed = 6;
   let obstacles = [];
   let score = 0;
   let gameOver = false;
@@ -229,7 +230,7 @@
   function jump() {
     if (!isJumping && !paused) {
       isJumping = true;
-      jumpSpeed = 12;
+      jumpSpeed = 12;  
     }
   }
 
@@ -245,8 +246,6 @@
     startButton.style.display = 'none';
     pauseButton.style.display = 'block';
     window.addEventListener('keydown', keyHandler);
-    // Se não tem obstáculos, cria um inicial
-    if (obstacles.length === 0) obstacles.push(createObstacle());
     update();
   });
 
@@ -284,14 +283,14 @@
         score++;
         scoreDisplay.textContent = 'Score: ' + score;
 
-        if (score % 3 === 0) {
-          obstacleSpeed += 1;
+        if (score % 10 === 0 && obstacles.length < 5) {  
+          obstacles.push(createObstacle());
         }
       } else {
         obstacle.style.left = pos + 'px';
       }
 
-      // Colisão
+      // Verifica colisão com as hitboxes ajustadas
       const playerHitboxX = playerLeft + (playerWidth - playerHitbox.width) / 2;
       const playerHitboxY = groundLevel + jumpHeight;
       const obstacleHitboxX = parseInt(obstacle.style.left) + (obstacleWidth - obstacleHitbox.width) / 2;
@@ -307,23 +306,16 @@
 
       if (horizontalOverlap && verticalOverlap) {
         gameOver = true;
-        updateRanking(score);
+        updateRanking(score);  // Atualiza o ranking com o score
         alert('Game Over! Seu score: ' + score);
-        pauseButton.style.display = 'none';
-        startButton.style.display = 'block';
-        return;
+        location.reload();
       }
     });
-
-    if (score % 10 === 0 && obstacles.length < 5) {
-      obstacles.push(createObstacle());
-    }
 
     animationFrameId = requestAnimationFrame(update);
   }
 
-  // Mostrar ranking ao carregar
-  renderRanking();
+  renderRanking();  // Exibe o ranking ao iniciar
 </script>
 
 </body>
